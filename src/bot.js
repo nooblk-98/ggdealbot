@@ -1,0 +1,234 @@
+import 'dotenv/config';
+import TelegramBot from 'node-telegram-bot-api';
+import cron from 'node-cron';
+import { createSession, destroySession, scrapeAll } from './scraper.js';
+import {
+  initDb, isDealSent, markDealSent, getLastPrice,
+  recordPriceHistory, pruneOldDeals, getDealStats, closeDb,
+  isTitleRecentlySent, matchWatchlist,
+} from './database.js';
+import { escapeHtml, formatDealMessage, formatBatchCaption, storeEmoji } from './utils.js';
+
+// --- Config ---
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const CRON_SCHEDULE = process.env.CRON_SCHEDULE || '0 * * * *';
+const SCRAPE_PAGES = parseInt(process.env.SCRAPE_PAGES || '1', 10);
+const SILENT_MODE = process.env.SILENT_MODE === 'true';
+const STORES = (process.env.STORES || 'Steam').split(',').map(s => s.trim());
+const MIN_DISCOUNT = parseInt(process.env.MIN_DISCOUNT || '0', 10);
+const MAX_PRICE = parseFloat(process.env.MAX_PRICE || '0');
+const MIN_RATING = parseFloat(process.env.MIN_RATING || '0');
+const FREE_ONLY = process.env.FREE_ONLY === 'true';
+const PLATFORMS = (process.env.PLATFORMS || '').split(',').map(s => s.trim()).filter(Boolean);
+const STORE_MIN_RATINGS = parseStoreRatings(process.env.MIN_RATING_OVERRIDES || '');
+
+function parseStoreRatings(str) {
+  if (!str) return {};
+  return Object.fromEntries(
+    str.split(',')
+      .map(s => s.trim().split(':'))
+      .filter(p => p.length === 2 && p[0] && !isNaN(parseFloat(p[1])))
+      .map(([store, rating]) => [store.trim().toLowerCase(), parseFloat(rating)])
+  );
+}
+
+if (!BOT_TOKEN || !CHAT_ID) {
+  console.error('Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID');
+  process.exit(1);
+}
+
+// --- State ---
+let flareSession = null;
+let lastErrorAlert = 0;
+
+const bot = new TelegramBot(BOT_TOKEN);
+
+// --- Helpers ---
+
+async function sendDeal(deal) {
+  const caption = formatDealMessage(deal);
+  const keyboard = { inline_keyboard: [[{ text: 'View on GG.deals', url: deal.url }]] };
+
+  try {
+    if (deal.image) {
+      await bot.sendPhoto(CHAT_ID, deal.image, { caption, parse_mode: 'HTML', reply_markup: keyboard });
+    } else {
+      await bot.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard });
+    }
+  } catch (err) {
+    if (deal.image) {
+      try {
+        await bot.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard });
+      } catch (_) {}
+      return;
+    }
+    console.error(`Failed to send "${deal.title}": ${err.message}`);
+  }
+}
+
+async function sendAlert(message) {
+  try {
+    await bot.sendMessage(CHAT_ID, `⚠️ ${message}`, { parse_mode: 'HTML' });
+  } catch (_) {}
+}
+
+async function ensureSession() {
+  if (!flareSession) {
+    flareSession = await createSession();
+    console.log('FlareSolverer session active');
+  }
+  return flareSession;
+}
+
+function applyFilters(deals) {
+  return deals.filter(d => {
+    const isFree = d.priceNum === 0 && d.price;
+    if (FREE_ONLY) return isFree;
+    if (!isFree) {
+      if (MIN_DISCOUNT > 0 && (d.discountNum || 0) < MIN_DISCOUNT) return false;
+      if (MAX_PRICE > 0 && (d.priceNum || 0) > MAX_PRICE) return false;
+    }
+    const storeKey = (d.store || '').toLowerCase();
+    const effectiveMinRating = STORE_MIN_RATINGS[storeKey] ?? MIN_RATING;
+    if (effectiveMinRating > 0 && (d.ratingScore || 0) < effectiveMinRating) return false;
+    if (PLATFORMS.length > 0 && d.platforms?.length > 0) {
+      const hit = d.platforms.some(p =>
+        PLATFORMS.some(f => p.toLowerCase().includes(f.toLowerCase()))
+      );
+      if (!hit) return false;
+    }
+    return true;
+  });
+}
+
+async function checkAndPostNewDeals() {
+  console.log(`[${new Date().toISOString()}] Checking for new deals...`);
+
+  try {
+    const session = await ensureSession();
+    const deals = await scrapeAll(SCRAPE_PAGES, session, STORES);
+
+    if (deals.length === 0) {
+      console.log('No deals found.');
+      return;
+    }
+
+    const filtered = applyFilters(deals);
+    const newDeals = [];
+    const priceDrops = [];
+
+    for (const deal of filtered) {
+      if (isDealSent(deal.url) || isTitleRecentlySent(deal.title)) continue;
+      const last = getLastPrice(deal.url);
+      if (last && last.price_num > 0 && deal.priceNum > 0 && deal.priceNum < last.price_num) {
+        deal.priceDrop = { oldPrice: `$${last.price_num.toFixed(2)}` };
+        priceDrops.push(deal);
+      }
+      deal.watchlistMatch = matchWatchlist(deal.title) || null;
+      newDeals.push(deal);
+    }
+
+    if (newDeals.length === 0) {
+      console.log('No new deals.');
+      return;
+    }
+
+    console.log(`${newDeals.length} new deals (${priceDrops.length} price drops)`);
+
+    if (SILENT_MODE) {
+      const withImages = newDeals.filter(d => d.image);
+      const withoutImages = newDeals.filter(d => !d.image);
+
+      for (let i = 0; i < withImages.length; i += 10) {
+        const batch = withImages.slice(i, i + 10);
+        const mediaGroup = batch.map(deal => ({
+          type: 'photo',
+          media: deal.image,
+          caption: formatBatchCaption(deal),
+          parse_mode: 'HTML',
+        }));
+        try {
+          await bot.sendMediaGroup(CHAT_ID, mediaGroup);
+        } catch {
+          for (const deal of batch) {
+            await sendDeal(deal);
+            await new Promise(r => setTimeout(r, 500));
+          }
+        }
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      if (withoutImages.length > 0) {
+        for (let i = 0; i < withoutImages.length; i += 10) {
+          const batch = withoutImages.slice(i, i + 10);
+          const rows = batch.map((deal, j) => {
+            const isFree = deal.priceNum === 0 && deal.price;
+            const price = isFree
+              ? `🆓 <b>FREE!</b>`
+              : deal.oldPrice && deal.price
+                ? `<s>${escapeHtml(deal.oldPrice)}</s> ➜ <b>${escapeHtml(deal.price)}</b>${deal.discount ? `  <b>${escapeHtml(deal.discount)} OFF</b>` : ''}`
+                : deal.price ? `<b>${escapeHtml(deal.price)}</b>` : '';
+            const flags = [];
+            if (deal.historicalLow) flags.push('📉 Low');
+            return [
+              `${i + j + 1}. <b>${escapeHtml(deal.title)}</b>`,
+              price,
+              flags.join('  ·  '),
+            ].filter(Boolean).join('\n   ');
+          });
+          const msg = `<b>New Deals</b>\n┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n\n${rows.join('\n\n')}`;
+          await bot.sendMessage(CHAT_ID, msg, { parse_mode: 'HTML' });
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+    } else {
+      for (const deal of newDeals) {
+        await sendDeal(deal);
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
+    for (const deal of newDeals) {
+      markDealSent(deal);
+      recordPriceHistory(deal);
+    }
+
+    pruneOldDeals();
+    console.log(`Posted ${newDeals.length} new deals.`);
+
+    // Destroy session after each run — no need to hold it for 5 hours
+    await destroySession(flareSession).catch(() => {});
+    flareSession = null;
+
+  } catch (err) {
+    console.error('Error in check cycle:', err.message);
+    flareSession = null;
+    const now = Date.now();
+    if (now - lastErrorAlert > 3600000) {
+      await sendAlert(`Scraper error: ${escapeHtml(err.message)}`).catch(() => {});
+      lastErrorAlert = now;
+    }
+  }
+}
+
+// --- Start ---
+initDb();
+console.log('Bot started');
+console.log(`Schedule: ${CRON_SCHEDULE} | Pages: ${SCRAPE_PAGES} | Stores: ${STORES.join(',')}`);
+console.log(`Filters: min ${MIN_DISCOUNT}% off | max $${MAX_PRICE || '∞'} | min rating ${MIN_RATING || 'off'} | free only: ${FREE_ONLY} | silent: ${SILENT_MODE}`);
+
+checkAndPostNewDeals();
+cron.schedule(CRON_SCHEDULE, checkAndPostNewDeals);
+
+
+process.on('SIGINT', async () => {
+  if (flareSession) await destroySession(flareSession);
+  closeDb();
+  process.exit();
+});
+process.on('SIGTERM', async () => {
+  if (flareSession) await destroySession(flareSession);
+  closeDb();
+  process.exit();
+});
