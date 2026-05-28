@@ -67,7 +67,14 @@ export function initDb() {
 
   const runMigration = (id, sql) => {
     if (!db.prepare('SELECT id FROM migrations WHERE id = ?').get(id)) {
-      db.exec(sql);
+      try {
+        db.exec(sql);
+      } catch (err) {
+        // Column/index already exists from a pre-migration run — still mark applied
+        if (!err.message.includes('duplicate column name') && !err.message.includes('already exists')) {
+          throw err;
+        }
+      }
       db.prepare('INSERT INTO migrations (id) VALUES (?)').run(id);
     }
   };
