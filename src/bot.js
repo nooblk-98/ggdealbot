@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import TelegramBot from 'node-telegram-bot-api';
 import cron from 'node-cron';
+import { writeFileSync } from 'fs';
 import { createSession, destroySession, scrapeAll } from './scraper.js';
 import {
   initDb, isDealSent, markDealSent, getLastPrice,
@@ -108,6 +109,9 @@ async function ensureSession() {
 
 function applyFilters(deals) {
   return deals.filter(d => {
+    // Drop cards where extraction returned no price and no discount (bad scrape)
+    if (!d.price && !d.discount) return false;
+
     const isFree = d.priceNum === 0 && d.price;
     if (FREE_ONLY) return isFree;
     if (!isFree) {
@@ -181,7 +185,14 @@ async function checkAndPostNewDeals() {
         if (!sent) {
           for (const deal of batch) {
             await sendDeal(deal);
+            markDealSent(deal);
+            recordPriceHistory(deal);
             await sleep(3000);
+          }
+        } else {
+          for (const deal of batch) {
+            markDealSent(deal);
+            recordPriceHistory(deal);
           }
         }
         await sleep(3000);
@@ -207,22 +218,24 @@ async function checkAndPostNewDeals() {
           });
           const msg = `<b>New Deals</b>\n┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n\n${rows.join('\n\n')}`;
           await sendWithRetry(() => bot.sendMessage(CHAT_ID, msg, { parse_mode: 'HTML' }), 'batch');
+          for (const deal of batch) {
+            markDealSent(deal);
+            recordPriceHistory(deal);
+          }
           await sleep(3000);
         }
       }
     } else {
       for (const deal of newDeals) {
         await sendDeal(deal);
+        markDealSent(deal);
+        recordPriceHistory(deal);
         await sleep(3000);
       }
     }
 
-    for (const deal of newDeals) {
-      markDealSent(deal);
-      recordPriceHistory(deal);
-    }
-
     pruneOldDeals();
+    writeFileSync('/tmp/last_scrape', Math.floor(Date.now() / 1000).toString());
     console.log(`Posted ${newDeals.length} new deals.`);
 
     // Destroy session after each run — no need to hold it for 5 hours
