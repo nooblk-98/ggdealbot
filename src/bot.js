@@ -46,24 +46,49 @@ const bot = new TelegramBot(BOT_TOKEN);
 
 // --- Helpers ---
 
+async function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+async function sendWithRetry(fn, label, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const retryAfter = err.response?.body?.parameters?.retry_after;
+      if (retryAfter) {
+        console.warn(`Rate limited — waiting ${retryAfter}s (attempt ${attempt}/${retries})`);
+        await sleep((retryAfter + 1) * 1000);
+        continue;
+      }
+      if (attempt === retries) {
+        console.error(`Failed to send "${label}": ${err.message}`);
+      }
+    }
+  }
+}
+
 async function sendDeal(deal) {
   const caption = formatDealMessage(deal);
   const keyboard = { inline_keyboard: [[{ text: 'View on GG.deals', url: deal.url }]] };
 
-  try {
-    if (deal.image) {
-      await bot.sendPhoto(CHAT_ID, deal.image, { caption, parse_mode: 'HTML', reply_markup: keyboard });
-    } else {
-      await bot.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard });
+  if (deal.image) {
+    const sent = await sendWithRetry(
+      () => bot.sendPhoto(CHAT_ID, deal.image, { caption, parse_mode: 'HTML', reply_markup: keyboard }),
+      deal.title
+    );
+    if (!sent) {
+      // Image failed — fall back to text
+      await sendWithRetry(
+        () => bot.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
+        deal.title
+      );
     }
-  } catch (err) {
-    if (deal.image) {
-      try {
-        await bot.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard });
-      } catch (_) {}
-      return;
-    }
-    console.error(`Failed to send "${deal.title}": ${err.message}`);
+  } else {
+    await sendWithRetry(
+      () => bot.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
+      deal.title
+    );
   }
 }
 
@@ -148,15 +173,17 @@ async function checkAndPostNewDeals() {
           caption: formatBatchCaption(deal),
           parse_mode: 'HTML',
         }));
-        try {
-          await bot.sendMediaGroup(CHAT_ID, mediaGroup);
-        } catch {
+        const sent = await sendWithRetry(
+          () => bot.sendMediaGroup(CHAT_ID, mediaGroup),
+          'media group'
+        );
+        if (!sent) {
           for (const deal of batch) {
             await sendDeal(deal);
-            await new Promise(r => setTimeout(r, 500));
+            await sleep(3000);
           }
         }
-        await new Promise(r => setTimeout(r, 1000));
+        await sleep(3000);
       }
 
       if (withoutImages.length > 0) {
@@ -178,14 +205,14 @@ async function checkAndPostNewDeals() {
             ].filter(Boolean).join('\n   ');
           });
           const msg = `<b>New Deals</b>\n┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n\n${rows.join('\n\n')}`;
-          await bot.sendMessage(CHAT_ID, msg, { parse_mode: 'HTML' });
-          await new Promise(r => setTimeout(r, 1000));
+          await sendWithRetry(() => bot.sendMessage(CHAT_ID, msg, { parse_mode: 'HTML' }), 'batch');
+          await sleep(3000);
         }
       }
     } else {
       for (const deal of newDeals) {
         await sendDeal(deal);
-        await new Promise(r => setTimeout(r, 500));
+        await sleep(3000);
       }
     }
 
