@@ -7,7 +7,7 @@ import {
   recordPriceHistory, pruneOldDeals, getDealStats, closeDb,
   isTitleRecentlySent, matchWatchlist,
 } from './database.js';
-import { escapeHtml, formatDealMessage, formatBatchCaption, storeEmoji } from './utils.js';
+import { escapeHtml, formatDealMessage, formatBatchCaption, storeEmoji, getStoreFallbackImage } from './utils.js';
 
 // --- Config ---
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -71,14 +71,14 @@ async function sendWithRetry(fn, label, retries = 3) {
 async function sendDeal(deal) {
   const caption = formatDealMessage(deal);
   const keyboard = { inline_keyboard: [[{ text: 'View on GG.deals', url: deal.url }]] };
+  const image = deal.image || getStoreFallbackImage(deal.store);
 
-  if (deal.image) {
+  if (image) {
     const sent = await sendWithRetry(
-      () => bot.sendPhoto(CHAT_ID, deal.image, { caption, parse_mode: 'HTML', reply_markup: keyboard }),
+      () => bot.sendPhoto(CHAT_ID, image, { caption, parse_mode: 'HTML', reply_markup: keyboard }),
       deal.title
     );
     if (!sent) {
-      // Image failed — fall back to text
       await sendWithRetry(
         () => bot.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
         deal.title
@@ -162,14 +162,15 @@ async function checkAndPostNewDeals() {
     console.log(`${newDeals.length} new deals (${priceDrops.length} price drops)`);
 
     if (SILENT_MODE) {
-      const withImages = newDeals.filter(d => d.image);
-      const withoutImages = newDeals.filter(d => !d.image);
+      // Treat deals with a store fallback image as having an image too
+      const withImages = newDeals.filter(d => d.image || getStoreFallbackImage(d.store));
+      const withoutImages = newDeals.filter(d => !d.image && !getStoreFallbackImage(d.store));
 
       for (let i = 0; i < withImages.length; i += 10) {
         const batch = withImages.slice(i, i + 10);
         const mediaGroup = batch.map(deal => ({
           type: 'photo',
-          media: deal.image,
+          media: deal.image || getStoreFallbackImage(deal.store),
           caption: formatBatchCaption(deal),
           parse_mode: 'HTML',
         }));

@@ -54,15 +54,29 @@ export function initDb() {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS migrations (
+      id TEXT PRIMARY KEY,
+      applied_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   db.exec(`CREATE INDEX IF NOT EXISTS idx_deal_url ON deals(deal_url)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_sent_at ON deals(sent_at)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_price_history_url ON price_history(deal_url)`);
 
-  try { db.exec(`ALTER TABLE deals ADD COLUMN platforms TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE deals ADD COLUMN historical_low INTEGER DEFAULT 0`); } catch {}
-  try { db.exec(`ALTER TABLE deals ADD COLUMN price_num REAL DEFAULT 0`); } catch {}
-  try { db.exec(`ALTER TABLE deals ADD COLUMN discount_num INTEGER DEFAULT 0`); } catch {}
-  try { db.exec(`ALTER TABLE deals ADD COLUMN rating_score REAL DEFAULT 0`); } catch {}
+  const runMigration = (id, sql) => {
+    if (!db.prepare('SELECT id FROM migrations WHERE id = ?').get(id)) {
+      db.exec(sql);
+      db.prepare('INSERT INTO migrations (id) VALUES (?)').run(id);
+    }
+  };
+
+  runMigration('add_platforms',     `ALTER TABLE deals ADD COLUMN platforms TEXT`);
+  runMigration('add_historical_low',`ALTER TABLE deals ADD COLUMN historical_low INTEGER DEFAULT 0`);
+  runMigration('add_price_num',     `ALTER TABLE deals ADD COLUMN price_num REAL DEFAULT 0`);
+  runMigration('add_discount_num',  `ALTER TABLE deals ADD COLUMN discount_num INTEGER DEFAULT 0`);
+  runMigration('add_rating_score',  `ALTER TABLE deals ADD COLUMN rating_score REAL DEFAULT 0`);
 
   return db;
 }

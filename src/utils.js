@@ -1,3 +1,28 @@
+// Store-branded fallback images shown when a deal has no thumbnail
+const STORE_FALLBACK_IMAGES = {
+  'steam':               'https://images.gg.deals/shops/4_616xr353.webp',
+  'epic games store':    'https://images.gg.deals/shops/57_616xr353.webp',
+  'microsoft store':     'https://images.gg.deals/shops/72_616xr353.webp',
+  'playstation store':   'https://images.gg.deals/shops/103_616xr353.webp',
+  'ubisoft store':       'https://images.gg.deals/shops/38_616xr353.webp',
+  'rockstar store':      'https://images.gg.deals/shops/1169_616xr353.webp',
+};
+
+export function getStoreFallbackImage(store) {
+  return STORE_FALLBACK_IMAGES[(store || '').toLowerCase()] || null;
+}
+
+export function normalizeUrl(url) {
+  try {
+    const u = new URL(url);
+    u.search = '';
+    u.hash = '';
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export function escapeHtml(text) {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

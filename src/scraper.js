@@ -2,6 +2,7 @@ import 'dotenv/config';
 import * as cheerio from 'cheerio';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
+import { normalizeUrl } from './utils.js';
 
 const FLARE_URL = (process.env.FLARE_SOLVER_URL || 'http://80.225.221.245:8191') + '/v1';
 const BASE_URL = 'https://gg.deals/deals/';
@@ -229,7 +230,7 @@ export function extractDeals(html, storeFilter) {
       rating,
       ratingScore,
       image,
-      url: href.startsWith('http') ? href : `https://gg.deals${href}`,
+      url: normalizeUrl(href.startsWith('http') ? href : `https://gg.deals${href}`),
       dealId,
       store: shopName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
       platforms: [...new Set(platforms)],
