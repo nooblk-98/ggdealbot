@@ -1,4 +1,4 @@
-import { getDealStats, getRecentDeals, getTopDeals } from './database.js';
+import { getDealStats } from './database.js';
 import { escapeHtml, storeEmoji } from './utils.js';
 import { ADMIN_ID, CRON_SCHEDULE, SCRAPE_PAGES, STORES, MIN_DISCOUNT, MAX_PRICE, MIN_RATING, FREE_ONLY, SILENT_MODE } from './config.js';
 
@@ -64,23 +64,6 @@ export function registerCommands(bot) {
       lines.push(`<b>🏬 Active stores</b>`);
       lines.push(stats.stores.map(s => `${storeEmoji(s)} ${escapeHtml(s)}`).join('  ·  '));
       lines.push(``);
-    }
-
-    // Recent deals
-    if (recent.length) {
-      lines.push(`<b>🕐 Last 5 sent</b>`);
-      recent.forEach(d => {
-        lines.push(`• ${escapeHtml(d.title)} — <b>${escapeHtml(d.price || 'free')}</b>`);
-      });
-      lines.push(``);
-    }
-
-    // Top rated
-    if (top.length) {
-      lines.push(`<b>⭐ Top rated (all time)</b>`);
-      top.forEach(d => {
-        lines.push(`• ${escapeHtml(d.title)} — ${d.rating_score}/10`);
-      });
     }
 
     await ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
