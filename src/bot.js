@@ -10,7 +10,8 @@ import {
 import { escapeHtml, getStoreFallbackImage } from './utils.js';
 import { BOT_TOKEN, CHAT_ID, CRON_SCHEDULE, SCRAPE_PAGES, STORES, SILENT_MODE } from './config.js';
 import { applyFilters } from './filters.js';
-import { sendDeal, sendAlert, sendWithRetry, sendMediaGroupBatch, sendTextBatch } from './sender.js';
+import { sendDeal, sendAlert, sendMediaGroupBatch, sendTextBatch } from './sender.js';
+import { registerCommands } from './commands.js';
 
 // --- State ---
 let flareSession = null;
@@ -127,6 +128,10 @@ async function checkAndPostNewDeals() {
 initDb();
 const removedDeal = removeLastSentDeal();
 if (removedDeal) console.log(`Removed last sent deal from history for re-test: "${removedDeal}"`);
+
+registerCommands(bot);
+bot.start({ drop_pending_updates: true });
+
 console.log('Bot started');
 console.log(`Schedule: ${CRON_SCHEDULE} | Pages: ${SCRAPE_PAGES} | Stores: ${STORES.join(',')}`);
 
