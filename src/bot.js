@@ -1,7 +1,9 @@
 import 'dotenv/config';
 import TelegramBot from 'node-telegram-bot-api';
 import cron from 'node-cron';
-import { writeFileSync } from 'fs';
+import { writeFileSync, createReadStream } from 'fs';
+import { resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { createSession, destroySession, scrapeAll } from './scraper.js';
 import {
   initDb, isDealSent, markDealSent, getLastPrice,
@@ -9,6 +11,8 @@ import {
   isTitleRecentlySent, matchWatchlist,
 } from './database.js';
 import { escapeHtml, formatDealMessage, formatBatchCaption, storeEmoji, getStoreFallbackImage } from './utils.js';
+
+const FALLBACK_IMAGE = resolve(fileURLToPath(import.meta.url), '../../images/deals.jpg');
 
 // --- Config ---
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -86,10 +90,16 @@ async function sendDeal(deal) {
       );
     }
   } else {
-    await sendWithRetry(
-      () => bot.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
+    const sent = await sendWithRetry(
+      () => bot.sendPhoto(CHAT_ID, createReadStream(FALLBACK_IMAGE), { caption, parse_mode: 'HTML', reply_markup: keyboard }),
       deal.title
     );
+    if (!sent) {
+      await sendWithRetry(
+        () => bot.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
+        deal.title
+      );
+    }
   }
 }
 
