@@ -151,6 +151,15 @@ export function getDealStats() {
   return { total, stores: uniqueStores, lastScraped: lastScraped?.scraped_at || null };
 }
 
+export function removeLastSentDeal() {
+  const row = db.prepare('SELECT id, title FROM deals ORDER BY sent_at DESC LIMIT 1').get();
+  if (row) {
+    db.prepare('DELETE FROM deals WHERE id = ?').run(row.id);
+    return row.title;
+  }
+  return null;
+}
+
 export function closeDb() {
   if (db) db.close();
 }

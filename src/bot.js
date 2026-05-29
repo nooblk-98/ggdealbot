@@ -8,7 +8,7 @@ import { createSession, destroySession, scrapeAll } from './scraper.js';
 import {
   initDb, isDealSent, markDealSent, getLastPrice,
   recordPriceHistory, pruneOldDeals, getDealStats, closeDb,
-  isTitleRecentlySent, matchWatchlist,
+  isTitleRecentlySent, matchWatchlist, removeLastSentDeal,
 } from './database.js';
 import { escapeHtml, formatDealMessage, formatBatchCaption, storeEmoji, getStoreFallbackImage } from './utils.js';
 
@@ -265,6 +265,8 @@ async function checkAndPostNewDeals() {
 
 // --- Start ---
 initDb();
+const removedDeal = removeLastSentDeal();
+if (removedDeal) console.log(`Removed last sent deal from history for re-test: "${removedDeal}"`);
 console.log('Bot started');
 console.log(`Schedule: ${CRON_SCHEDULE} | Pages: ${SCRAPE_PAGES} | Stores: ${STORES.join(',')}`);
 console.log(`Filters: min ${MIN_DISCOUNT}% off | max $${MAX_PRICE || '∞'} | min rating ${MIN_RATING || 'off'} | free only: ${FREE_ONLY} | silent: ${SILENT_MODE}`);
