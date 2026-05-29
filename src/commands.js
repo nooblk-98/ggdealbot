@@ -1,5 +1,4 @@
 import { getDealStats } from './database.js';
-import { escapeHtml, storeEmoji } from './utils.js';
 import { ADMIN_ID, CRON_SCHEDULE, SCRAPE_PAGES, STORES, MIN_DISCOUNT, MAX_PRICE, MIN_RATING, FREE_ONLY, SILENT_MODE } from './config.js';
 
 function isAdmin(ctx) {
@@ -25,29 +24,23 @@ function formatLastScrape(isoDate) {
 export function registerCommands(bot) {
   bot.command('start', ctx => {
     if (!isAdmin(ctx)) return;
-    ctx.reply('👋 GG Deals Bot is running.\n\nCommands:\n/stats — full status report');
+    ctx.reply('👋 GG Deals Bot is running.\n\nCommands:\n/stats — status report');
   });
 
   bot.command('stats', async ctx => {
     if (!isAdmin(ctx)) return;
 
     const stats = getDealStats();
-    const recent = getRecentDeals(5);
-    const top = getTopDeals(3);
-
     const lines = [];
 
-    // Header
     lines.push(`<b>📊 GG Deals Bot — Status</b>`);
     lines.push(`┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄`);
 
-    // Bot health
     lines.push(`⏱ <b>Uptime:</b> ${formatUptime()}`);
     lines.push(`🕐 <b>Last scrape:</b> ${formatLastScrape(stats.lastScraped)}`);
     lines.push(`📦 <b>Total deals sent:</b> ${stats.total}`);
     lines.push(``);
 
-    // Config
     lines.push(`<b>⚙️ Config</b>`);
     lines.push(`• Schedule: <code>${CRON_SCHEDULE}</code>`);
     lines.push(`• Stores: ${STORES.join(', ')}`);
@@ -57,14 +50,6 @@ export function registerCommands(bot) {
     if (MIN_RATING > 0)   lines.push(`• Min rating: ${MIN_RATING}`);
     if (FREE_ONLY)        lines.push(`• Free only: yes`);
     if (SILENT_MODE)      lines.push(`• Silent mode: yes`);
-    lines.push(``);
-
-    // Stores breakdown
-    if (stats.stores?.length) {
-      lines.push(`<b>🏬 Active stores</b>`);
-      lines.push(stats.stores.map(s => `${storeEmoji(s)} ${escapeHtml(s)}`).join('  ·  '));
-      lines.push(``);
-    }
 
     await ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
   });
