@@ -54,8 +54,8 @@ export function formatDealMessage(deal) {
   const DIVIDER = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄';
   const lines = [];
 
-  lines.push(`<b>${escapeHtml(deal.title)}</b>`);
-  lines.push(DIVIDER);
+  lines.push(`Game : <b>${escapeHtml(deal.title)}</b>`);
+  lines.push('');
 
   if (deal.priceNum === 0 && deal.price) {
     lines.push(`🆓 <b>FREE!</b>${deal.oldPrice ? `  <s>${escapeHtml(deal.oldPrice)}</s>` : ''}`);
@@ -75,21 +75,16 @@ export function formatDealMessage(deal) {
     }
   }
 
-  const badges = [];
-  if (deal.historicalLow) badges.push('📉 <b>Historical Low!</b>');
-  if (deal.priceDrop) badges.push(`📊 <b>Price Drop</b>  ${escapeHtml(deal.priceDrop.oldPrice)} ➜ <b>${escapeHtml(deal.price)}</b>`);
-  if (badges.length) {
-    lines.push('');
-    lines.push(...badges);
-  }
+  if (deal.historicalLow) lines.push(`📉 <b>Historical Low!</b>`);
+  if (deal.priceDrop) lines.push(`📊 <b>Price Drop</b>  ${escapeHtml(deal.priceDrop.oldPrice)} ➜ <b>${escapeHtml(deal.price)}</b>`);
 
   const ratingLine = formatRating(deal.rating);
   if (ratingLine) lines.push(ratingLine);
 
   lines.push('');
   lines.push(DIVIDER);
-  if (deal.store) lines.push(`<b>${escapeHtml(deal.store)}</b>`);
-  if (deal.platforms?.length) lines.push(`\n${deal.platforms.map(escapeHtml).join('  ·  ')}`);
+  if (deal.store) lines.push(`Store : <b>${escapeHtml(deal.store)}</b>`);
+  if (deal.platforms?.length) lines.push(`\nPlatforms : ${deal.platforms.map(escapeHtml).join(' | ')}`);
 
   return lines.join('\n');
 }
