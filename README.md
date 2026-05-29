@@ -96,7 +96,6 @@ All configuration is via `.env`. Restart the bot to apply changes.
 | Microsoft Store | `Microsoft Store` |
 | PlayStation Store | `PlayStation Store` |
 | Ubisoft Store | `Ubisoft Store` |
-| Rockstar Store | `Rockstar Store` |
 
 ## How It Works
 
