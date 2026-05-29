@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import TelegramBot from 'node-telegram-bot-api';
+import { Bot, InputFile } from 'grammy';
 import cron from 'node-cron';
 import { writeFileSync, createReadStream } from 'fs';
 import { resolve } from 'path';
@@ -47,7 +47,7 @@ if (!BOT_TOKEN || !CHAT_ID) {
 let flareSession = null;
 let lastErrorAlert = 0;
 
-const bot = new TelegramBot(BOT_TOKEN);
+const bot = new Bot(BOT_TOKEN);
 
 // --- Helpers ---
 
@@ -60,7 +60,7 @@ async function sendWithRetry(fn, label, retries = 3) {
     try {
       return await fn();
     } catch (err) {
-      const retryAfter = err.response?.body?.parameters?.retry_after;
+      const retryAfter = err.parameters?.retry_after;
       if (retryAfter) {
         console.warn(`Rate limited — waiting ${retryAfter}s (attempt ${attempt}/${retries})`);
         await sleep((retryAfter + 1) * 1000);
@@ -80,23 +80,23 @@ async function sendDeal(deal) {
 
   if (image) {
     const sent = await sendWithRetry(
-      () => bot.sendPhoto(CHAT_ID, image, { caption, parse_mode: 'HTML', reply_markup: keyboard }),
+      () => bot.api.sendPhoto(CHAT_ID, image, { caption, parse_mode: 'HTML', reply_markup: keyboard }),
       deal.title
     );
     if (!sent) {
       await sendWithRetry(
-        () => bot.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
+        () => bot.api.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
         deal.title
       );
     }
   } else {
     const sent = await sendWithRetry(
-      () => bot.sendPhoto(CHAT_ID, createReadStream(FALLBACK_IMAGE), { caption, parse_mode: 'HTML', reply_markup: keyboard }),
+      () => bot.api.sendPhoto(CHAT_ID, new InputFile(createReadStream(FALLBACK_IMAGE), 'cover.jpg'), { caption, parse_mode: 'HTML', reply_markup: keyboard }),
       deal.title
     );
     if (!sent) {
       await sendWithRetry(
-        () => bot.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
+        () => bot.api.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
         deal.title
       );
     }
@@ -105,7 +105,7 @@ async function sendDeal(deal) {
 
 async function sendAlert(message) {
   try {
-    await bot.sendMessage(CHAT_ID, `⚠️ ${message}`, { parse_mode: 'HTML' });
+    await bot.api.sendMessage(CHAT_ID, `⚠️ ${message}`, { parse_mode: 'HTML' });
   } catch (_) {}
 }
 
@@ -189,7 +189,7 @@ async function checkAndPostNewDeals() {
           parse_mode: 'HTML',
         }));
         const sent = await sendWithRetry(
-          () => bot.sendMediaGroup(CHAT_ID, mediaGroup),
+          () => bot.api.sendMediaGroup(CHAT_ID, mediaGroup),
           'media group'
         );
         if (!sent) {
@@ -227,7 +227,7 @@ async function checkAndPostNewDeals() {
             ].filter(Boolean).join('\n   ');
           });
           const msg = `<b>New Deals</b>\n┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n\n${rows.join('\n\n')}`;
-          await sendWithRetry(() => bot.sendMessage(CHAT_ID, msg, { parse_mode: 'HTML' }), 'batch');
+          await sendWithRetry(() => bot.api.sendMessage(CHAT_ID, msg, { parse_mode: 'HTML' }), 'batch');
           for (const deal of batch) {
             markDealSent(deal);
             recordPriceHistory(deal);
@@ -271,7 +271,6 @@ console.log(`Filters: min ${MIN_DISCOUNT}% off | max $${MAX_PRICE || '∞'} | mi
 
 checkAndPostNewDeals();
 cron.schedule(CRON_SCHEDULE, checkAndPostNewDeals);
-
 
 process.on('SIGINT', async () => {
   if (flareSession) await destroySession(flareSession);
