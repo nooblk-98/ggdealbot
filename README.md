@@ -4,9 +4,9 @@ A Telegram channel bot that monitors [GG.deals](https://gg.deals) for game deals
 
 [![Node.js](https://img.shields.io/badge/Node.js->=22-3c873a?style=flat-square)](https://nodejs.org)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ed?style=flat-square&logo=docker&logoColor=white)](https://docker.com)
-[![Telegram Channel](https://img.shields.io/badge/Telegram-Live%20Channel-2CA5E0?style=flat-square&logo=telegram&logoColor=white)](https://t.me/+VXwxTf3aF-JlOGNl)
+[![Telegram Channel](https://img.shields.io/badge/Telegram-Live%20Channel-2CA5E0?style=flat-square&logo=telegram&logoColor=white)](https://t.me/game_dealzz)
 
-> 📢 **See it in action** — join the live deals channel: [t.me/+VXwxTf3aF-JlOGNl](https://t.me/+VXwxTf3aF-JlOGNl)
+> 📢 **See it in action** — join the live deals channel: [t.me/game_dealzz](https://t.me/game_dealzz)
 
 ## Features
 
