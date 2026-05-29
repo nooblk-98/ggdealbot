@@ -51,7 +51,6 @@ export function formatRating(rating) {
 }
 
 export function formatDealMessage(deal) {
-  const DIVIDER = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄';
   const lines = [];
 
   lines.push(`Game : <b>${escapeHtml(deal.title)}</b>`);
@@ -82,7 +81,6 @@ export function formatDealMessage(deal) {
   if (ratingLine) lines.push(ratingLine);
 
   lines.push('');
-  lines.push(DIVIDER);
   if (deal.store) lines.push(`Store : <b>${escapeHtml(deal.store)}</b>`);
   if (deal.platforms?.length) lines.push(`\nPlatforms : ${deal.platforms.map(escapeHtml).join(' | ')}`);
 
