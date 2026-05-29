@@ -78,28 +78,30 @@ async function sendDeal(deal) {
   const keyboard = { inline_keyboard: [[{ text: 'View on GG.deals', url: deal.url }]] };
   const image = deal.image || getStoreFallbackImage(deal.store);
 
-  if (image) {
-    const sent = await sendWithRetry(
-      () => bot.api.sendPhoto(CHAT_ID, image, { caption, parse_mode: 'HTML', reply_markup: keyboard }),
-      deal.title
-    );
-    if (!sent) {
-      await sendWithRetry(
-        () => bot.api.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
-        deal.title
-      );
-    }
-  } else {
-    const sent = await sendWithRetry(
+  // Always send with photo — use scraped URL if available, else local fallback.
+  // If the URL is Cloudflare-blocked (Telegram can't fetch it), fall back to local file.
+  const photo = image
+    ? image
+    : new InputFile(createReadStream(FALLBACK_IMAGE), 'cover.jpg');
+
+  let sent = await sendWithRetry(
+    () => bot.api.sendPhoto(CHAT_ID, photo, { caption, parse_mode: 'HTML', reply_markup: keyboard }),
+    deal.title
+  );
+
+  if (!sent && image) {
+    // URL was blocked — retry with local fallback
+    sent = await sendWithRetry(
       () => bot.api.sendPhoto(CHAT_ID, new InputFile(createReadStream(FALLBACK_IMAGE), 'cover.jpg'), { caption, parse_mode: 'HTML', reply_markup: keyboard }),
       deal.title
     );
-    if (!sent) {
-      await sendWithRetry(
-        () => bot.api.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
-        deal.title
-      );
-    }
+  }
+
+  if (!sent) {
+    await sendWithRetry(
+      () => bot.api.sendMessage(CHAT_ID, caption, { parse_mode: 'HTML', reply_markup: keyboard }),
+      deal.title
+    );
   }
 }
 
