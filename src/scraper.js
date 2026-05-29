@@ -89,43 +89,34 @@ export async function fetchPage(url, session) {
   });
 }
 
-// Scrape each store individually so GG.deals returns full results per store
 export async function scrapeAll(pages = 1, session, stores = ['Steam']) {
   const allDeals = [];
   const seen = new Set();
+  const storeSet = new Set(stores.map(s => s.toLowerCase()));
 
-  for (const store of stores) {
-    const storeFilter = new Set([store.toLowerCase()]);
+  for (let page = 1; page <= pages; page++) {
+    const url = buildDealsUrl(page, stores);
+    console.log(`  Scraping page ${page} (${stores.length} stores combined)...`);
 
-    for (let page = 1; page <= pages; page++) {
-      const url = buildDealsUrl(page, [store]);
-      console.log(`  Scraping ${store} page ${page}...`);
+    try {
+      const html = await fetchPage(url, session);
+      if (!html || html.length < 500) break;
 
-      try {
-        const html = await fetchPage(url, session);
-        if (!html || html.length < 500) break;
-
-        const deals = extractDeals(html, storeFilter);
-        let added = 0;
-        for (const deal of deals) {
-          if (!seen.has(deal.url)) {
-            seen.add(deal.url);
-            allDeals.push(deal);
-            added++;
-          }
+      const deals = extractDeals(html, storeSet);
+      let added = 0;
+      for (const deal of deals) {
+        if (!seen.has(deal.url)) {
+          seen.add(deal.url);
+          allDeals.push(deal);
+          added++;
         }
-        console.log(`  ${store} page ${page}: ${added} deals`);
-        if (deals.length === 0) break;
-        if (page < pages) await randomDelay(3000);
-      } catch (err) {
-        console.error(`  Failed to scrape ${store}: ${err.message}`);
-        break;
       }
-    }
-
-    // Pause between stores to avoid rate limiting
-    if (stores.indexOf(store) < stores.length - 1) {
-      await randomDelay(2000);
+      console.log(`  Page ${page}: ${added} deals`);
+      if (deals.length === 0) break;
+      if (page < pages) await randomDelay(3000);
+    } catch (err) {
+      console.error(`  Failed to scrape page ${page}: ${err.message}`);
+      break;
     }
   }
 
