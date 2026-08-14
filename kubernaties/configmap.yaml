@@ -6,10 +6,10 @@ metadata:
 data:
   FLARE_SOLVER_URL: "http://flaresolverr:8191"
   CRON_SCHEDULE: "0 */5 * * *"
-  SCRAPE_PAGES: "1"
+  SCRAPE_PAGES: "3"
   STORES: "Steam, Ubisoft Store, Epic Games Store, Microsoft Store"
   MIN_DISCOUNT: "0"
-  MAX_PRICE: "0"
+  MAX_PRICE: "5"
   MIN_RATING: "0"
   PLATFORMS: ""
   FREE_ONLY: "false"
