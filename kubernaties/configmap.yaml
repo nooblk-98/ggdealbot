@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: gamedeals-bot-config
-  namespace: gamedeals-bot
+  namespace: common-applications
 data:
   FLARE_SOLVER_URL: "http://flaresolverr:8191"
   CRON_SCHEDULE: "0 */5 * * *"

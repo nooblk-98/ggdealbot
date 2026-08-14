@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: gamedeals-bot-data
-  namespace: gamedeals-bot
+  namespace: common-applications
 spec:
   accessModes:
     - ReadWriteOnce

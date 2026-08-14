@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gamedeals-bot
-  namespace: gamedeals-bot
+  namespace: common-applications
   labels:
     app: gamedeals-bot
 spec:
@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: bot
-          image: gamedeals-bot:latest
+          image: ghcr.io/nooblk-98/ggdealbot:1.1.0
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
