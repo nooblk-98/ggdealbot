@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaresolverr
+  namespace: gamedeals-bot
+  labels:
+    app: flaresolverr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flaresolverr
+  template:
+    metadata:
+      labels:
+        app: flaresolverr
+    spec:
+      containers:
+        - name: flaresolverr
+          image: ghcr.io/flaresolverr/flaresolverr:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8191
+          env:
+            - name: LOG_LEVEL
+              value: info
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaresolverr
+  namespace: gamedeals-bot
+spec:
+  selector:
+    app: flaresolverr
+  ports:
+    - name: http
+      port: 8191
+      targetPort: 8191

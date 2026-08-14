@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gamedeals-bot
+  namespace: gamedeals-bot
+  labels:
+    app: gamedeals-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gamedeals-bot
+  template:
+    metadata:
+      labels:
+        app: gamedeals-bot
+    spec:
+      containers:
+        - name: bot
+          image: gamedeals-bot:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: gamedeals-bot-secret
+            - configMapRef:
+                name: gamedeals-bot-config
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - test -f /tmp/last_scrape && test $(( $(date +%s) - $(cat /tmp/last_scrape) )) -lt 21600
+            initialDelaySeconds: 600
+            periodSeconds: 1800
+            timeoutSeconds: 10
+            failureThreshold: 2
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: gamedeals-bot-data
