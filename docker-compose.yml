@@ -3,7 +3,30 @@ services:
     build: .
     container_name: gamedeals-bot
     restart: unless-stopped
-    env_file: .env
+    environment:
+      # Required
+      FLARE_SOLVER_URL: http://flaresolverr:8191
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+
+      # Admin (optional — enables /stats command)
+      ADMIN_TELEGRAM_ID: ${ADMIN_TELEGRAM_ID:-}
+
+      # Schedule (optional, default: every 5h)
+      CRON_SCHEDULE: ${CRON_SCHEDULE:-0 */5 * * *}
+      SCRAPE_PAGES: ${SCRAPE_PAGES:-1}
+
+      # Filters (optional)
+      STORES: ${STORES:-Steam, Ubisoft Store, Epic Games Store, Microsoft Store, PlayStation Store, Rockstar Store}
+      MIN_DISCOUNT: ${MIN_DISCOUNT:-0}
+      MAX_PRICE: ${MAX_PRICE:-0}
+      MIN_RATING: ${MIN_RATING:-0}
+      PLATFORMS: ${PLATFORMS:-}
+      FREE_ONLY: ${FREE_ONLY:-false}
+      MIN_RATING_OVERRIDES: ${MIN_RATING_OVERRIDES:-}
+
+      # Batch mode (optional, default: one msg per deal)
+      SILENT_MODE: ${SILENT_MODE:-false}
     depends_on:
       - flaresolverr
     volumes:
