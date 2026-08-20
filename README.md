@@ -65,7 +65,7 @@ npm run scrape
 docker compose up -d
 ```
 
-> Make sure `.env` exists before running — credentials are loaded via `env_file` in `docker-compose.yml`.
+> Make sure `.env` exists before running — `docker-compose.yml` substitutes its `environment:` values from `.env` automatically.
 
 ## Configuration
 
