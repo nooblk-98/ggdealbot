@@ -42,7 +42,8 @@ async function withRetry(fn, retries = MAX_RETRIES) {
       return await fn();
     } catch (err) {
       if (attempt === retries) throw err;
-      console.log(`Retry ${attempt}/${retries} after error: ${err.message}`);
+      const cause = err.cause ? ` (${err.cause.code || err.cause.message || err.cause})` : '';
+      console.log(`Retry ${attempt}/${retries} after error: ${err.message}${cause}`);
       await randomDelay(2000 * attempt);
     }
   }

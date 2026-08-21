@@ -28,7 +28,8 @@ services:
       # Batch mode (optional, default: one msg per deal)
       SILENT_MODE: ${SILENT_MODE:-false}
     depends_on:
-      - flaresolverr
+      flaresolverr:
+        condition: service_healthy
     volumes:
       - ./data:/app/data
 
@@ -40,3 +41,9 @@ services:
       - LOG_LEVEL=info
     ports:
       - "8191:8191"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8191/health', timeout=5)"]
+      interval: 10s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
