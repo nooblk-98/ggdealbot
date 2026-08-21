@@ -37,6 +37,7 @@ async function checkAndPostNewDeals() {
   try {
     const session = await ensureSession();
     const deals = await scrapeAll(SCRAPE_PAGES, session, STORES);
+    writeFileSync('/tmp/last_scrape', Math.floor(Date.now() / 1000).toString());
 
     if (deals.length === 0) {
       console.log('No deals found.');
@@ -107,7 +108,6 @@ async function checkAndPostNewDeals() {
     }
 
     pruneOldDeals();
-    writeFileSync('/tmp/last_scrape', Math.floor(Date.now() / 1000).toString());
     console.log(`Posted ${newDeals.length} new deals.`);
 
     await destroySession(flareSession).catch(() => {});
