@@ -115,6 +115,7 @@ async function checkAndPostNewDeals() {
 
   } catch (err) {
     console.error('Error in check cycle:', err.message);
+    if (flareSession) await destroySession(flareSession).catch(() => {});
     flareSession = null;
     const now = Date.now();
     if (now - lastErrorAlert > 3600000) {
