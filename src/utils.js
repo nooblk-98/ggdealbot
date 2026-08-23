@@ -12,6 +12,10 @@ export function getStoreFallbackImage(store) {
   return STORE_FALLBACK_IMAGES[(store || '').toLowerCase()] || null;
 }
 
+export function matchWatchlistPatterns(title, patterns) {
+  return patterns.find(p => title.toLowerCase().includes(p.toLowerCase())) || null;
+}
+
 export function normalizeUrl(url) {
   try {
     const u = new URL(url);

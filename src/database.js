@@ -198,9 +198,8 @@ export function getWatchlist() {
   return db.prepare('SELECT pattern, added_at FROM watchlist ORDER BY added_at DESC').all();
 }
 
-export function matchWatchlist(title) {
-  const patterns = db.prepare('SELECT pattern FROM watchlist').all().map(r => r.pattern);
-  return patterns.find(p => title.toLowerCase().includes(p.toLowerCase())) || null;
+export function getWatchlistPatterns() {
+  return db.prepare('SELECT pattern FROM watchlist').all().map(r => r.pattern);
 }
 
 // --- Top deals ---

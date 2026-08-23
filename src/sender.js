@@ -3,7 +3,7 @@ import { createReadStream } from 'fs';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { escapeHtml, formatDealMessage, formatBatchCaption, getStoreFallbackImage } from './utils.js';
-import { CHAT_ID } from './config.js';
+import { CHAT_ID, ADMIN_ID } from './config.js';
 
 export const FALLBACK_IMAGE = resolve(fileURLToPath(import.meta.url), '../../images/deals.jpg');
 
@@ -60,9 +60,15 @@ export async function sendDeal(bot, deal) {
 }
 
 export async function sendAlert(bot, message) {
+  if (!ADMIN_ID) {
+    console.error('Alert not sent — ADMIN_TELEGRAM_ID not configured:', message);
+    return;
+  }
   try {
-    await bot.api.sendMessage(CHAT_ID, `⚠️ ${message}`, { parse_mode: 'HTML' });
-  } catch (_) {}
+    await bot.api.sendMessage(ADMIN_ID, `⚠️ ${message}`, { parse_mode: 'HTML' });
+  } catch (err) {
+    console.error('Failed to send admin alert:', err.message);
+  }
 }
 
 export async function sendMediaGroupBatch(bot, batch) {

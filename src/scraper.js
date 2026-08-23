@@ -4,9 +4,15 @@ import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { normalizeUrl } from './utils.js';
 
-const FLARE_URL = (process.env.FLARE_SOLVER_URL || 'http://80.225.221.245:8191') + '/v1';
 const BASE_URL = 'https://gg.deals/deals/';
 const MAX_RETRIES = 3;
+const NON_RETRYABLE_ERROR = /session not found|invalid session/i;
+
+function getFlareUrl() {
+  const base = process.env.FLARE_SOLVER_URL;
+  if (!base) throw new Error('Missing FLARE_SOLVER_URL environment variable');
+  return base + '/v1';
+}
 
 const STORE_IDS = {
   steam: 4,
@@ -41,7 +47,7 @@ async function withRetry(fn, retries = MAX_RETRIES) {
     try {
       return await fn();
     } catch (err) {
-      if (attempt === retries) throw err;
+      if (attempt === retries || NON_RETRYABLE_ERROR.test(err.message)) throw err;
       const cause = err.cause ? ` (${err.cause.code || err.cause.message || err.cause})` : '';
       console.log(`Retry ${attempt}/${retries} after error: ${err.message}${cause}`);
       await randomDelay(2000 * attempt);
@@ -57,7 +63,7 @@ export async function flaresolverRequest(cmd, session, url) {
     body.maxTimeout = 120000;
   }
 
-  const resp = await fetch(FLARE_URL, {
+  const resp = await fetch(getFlareUrl(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

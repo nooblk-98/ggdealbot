@@ -86,6 +86,10 @@ All configuration is via `.env`. Restart the bot to apply changes.
 | `PLATFORMS` | — | Comma-separated platform filter e.g. `Windows, Steam` |
 | `FREE_ONLY` | `false` | Only post free-to-keep deals |
 | `SILENT_MODE` | `false` | Batch deals into media group albums |
+| `ADMIN_TELEGRAM_ID` | — | Your Telegram user ID. Enables `/stats` and routes error/failure alerts to you privately instead of the public channel |
+| `LAST_SCRAPE_FILE` | `/tmp/last_scrape` | Path to the marker file used by the Docker healthcheck |
+
+> Without `ADMIN_TELEGRAM_ID` set, scrape failures and repeated empty-scrape warnings are only logged to the console — they are never posted to the public channel.
 
 ### Supported Stores
 
@@ -105,6 +109,17 @@ All configuration is via `.env`. Restart the bot to apply changes.
 4. **Price history** — Each new deal's price is recorded. If a deal resurfaces at a lower price than previously seen, a Price Drop badge is shown.
 5. **Delivery** — Each deal is posted as a photo with caption and a View on GG.deals button. In silent mode, deals are batched into photo albums (up to 10 per album).
 6. **Retention** — Deals older than 30 days are automatically removed from the database.
+7. **Failure alerts** — If a scrape errors out, or returns 0 deals for 3 consecutive runs (a likely sign GG.deals changed its page markup), the admin is notified — at most once per hour to avoid spam.
+
+## Development
+
+```bash
+npm install
+npm test    # runs the unit tests (node's built-in test runner)
+npm run lint
+```
+
+Tests live in `test/` and cover the pure logic — HTML extraction (against a saved fixture), filters, message formatting, and the SQLite layer (in-memory DB). They don't hit FlareSolverr, GG.deals, or Telegram.
 
 ## Data
 

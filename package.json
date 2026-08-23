@@ -1,12 +1,17 @@
 {
   "name": "gamedeals-bot",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "scrape": "node src/scraper.js",
     "scrape:json": "node src/scraper.js --format json --output data/deals.json",
     "scrape:csv": "node src/scraper.js --format csv --output data/deals.csv",
-    "bot": "node src/bot.js"
+    "bot": "node src/bot.js",
+    "test": "node --env-file=.env.test --test",
+    "lint": "eslint ."
   },
   "dependencies": {
     "better-sqlite3": "^12.10.0",
@@ -14,5 +19,10 @@
     "dotenv": "^17.4.2",
     "grammy": "^1.43.0",
     "node-cron": "^4.2.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.0",
+    "globals": "^17.11.0"
   }
 }

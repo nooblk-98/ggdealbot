@@ -1,6 +1,9 @@
 import { MIN_DISCOUNT, MAX_PRICE, MIN_RATING, FREE_ONLY, PLATFORMS, STORE_MIN_RATINGS } from './config.js';
 
-export function applyFilters(deals) {
+const DEFAULT_CONFIG = { MIN_DISCOUNT, MAX_PRICE, MIN_RATING, FREE_ONLY, PLATFORMS, STORE_MIN_RATINGS };
+
+export function applyFilters(deals, config = DEFAULT_CONFIG) {
+  const { MIN_DISCOUNT, MAX_PRICE, MIN_RATING, FREE_ONLY, PLATFORMS, STORE_MIN_RATINGS } = config;
   return deals.filter(d => {
     // Drop cards where extraction returned no price and no discount (bad scrape)
     if (!d.price && !d.discount) return false;
