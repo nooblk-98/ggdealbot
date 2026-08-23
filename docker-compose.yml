@@ -31,7 +31,7 @@ services:
       flaresolverr:
         condition: service_healthy
     volumes:
-      - ./data:/app/data
+      - /opt/ggbot:/app/data
 
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
